@@ -7,10 +7,10 @@
   "keywords": ["csv", "reorder", "columns", "drag-and-drop", "pwa", "offline", "react"],
   "author": "Your Name",
   "license": "MIT",
-  "homepage": "https://github.com/yourusername/wildcat",
+  "homepage": "https://beaux-riel.github.io/WildCAT/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/wildcat.git"
+    "url": "https://github.com/beaux-riel/WildCAT.git"
   },
   "scripts": {
     "dev": "vite",
