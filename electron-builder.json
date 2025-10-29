@@ -26,12 +26,10 @@
         "arch": ["x64", "arm64"]
       }
     ],
-    "icon": "public/icon.icns",
+    "icon": "public/icon.png",
     "darkModeSupport": true,
-    "hardenedRuntime": true,
-    "gatekeeperAssess": false,
-    "entitlements": "build/entitlements.mac.plist",
-    "entitlementsInherit": "build/entitlements.mac.plist"
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false
   },
   "win": {
     "target": [
@@ -44,7 +42,7 @@
         "arch": ["x64", "ia32"]
       }
     ],
-    "icon": "public/icon.ico",
+    "icon": "public/icon.png",
     "artifactName": "${productName}-${version}-${arch}-setup.${ext}"
   },
   "linux": {
