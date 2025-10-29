@@ -1,10 +1,11 @@
 # 🐱 WildCAT - CSV Column Reorderer
 
-**A Progressive Web App for reordering CSV columns with drag-and-drop simplicity.**
+**A Progressive Web App and Desktop Application for reordering CSV columns with drag-and-drop simplicity.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Built with Vite](https://img.shields.io/badge/Built%20with-Vite-646CFF?logo=vite)](https://vitejs.dev)
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react)](https://react.dev)
+[![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron)](https://electronjs.org)
 [![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8)](https://web.dev/progressive-web-apps/)
 
 ---
@@ -12,6 +13,11 @@
 ## 🎯 What is WildCAT?
 
 WildCAT makes it easy to reorder CSV columns visually without writing code or complex spreadsheet formulas. Simply upload your CSV, drag columns into your desired order, save your favorite arrangements, and export instantly.
+
+**Available as**:
+- 🌐 **Web App** - Use in any browser with PWA support
+- 💻 **Desktop App** - Native application for Windows and macOS
+- 📱 **Mobile PWA** - Install on iOS/Android devices
 
 **Perfect for**:
 - Data analysts who repeatedly format the same report types
@@ -30,9 +36,11 @@ WildCAT makes it easy to reorder CSV columns visually without writing code or co
 | 📊 **Live Preview** | See your data with reordered columns instantly |
 | 📥 **Export CSV** | Download with proper CSV formatting |
 | 🔌 **Offline Mode** | Works without internet after installation |
-| 🌐 **Cross-Platform** | Windows, Mac, Linux, iOS, Android |
+| 🌐 **Cross-Platform** | Web, Windows, Mac, Linux, iOS, Android |
+| 💻 **Desktop App** | Native application with system integration |
 | ⚡ **Lightning Fast** | Loads in <1 second after first visit |
 | 🔒 **100% Private** | All processing happens locally, no data uploaded |
+| 🚀 **Auto-Updates** | Desktop builds released automatically via GitHub |
 
 ---
 
@@ -40,18 +48,26 @@ WildCAT makes it easy to reorder CSV columns visually without writing code or co
 
 ### For End Users
 
-**Install WildCAT in 2 steps:**
+**Option 1: Desktop App (Recommended)**
 
-1. **Visit the app** (replace with your deployed URL):
-   ```
-   https://your-app-url.com
-   ```
+Download the latest release for your platform:
 
+👉 **[Download from GitHub Releases](https://github.com/beaux-riel/WildCAT/releases/latest)**
+
+| Platform | Download |
+|----------|----------|
+| 🪟 **Windows** | `.exe` installer (x64 or ia32) |
+| 🍎 **macOS** | `.dmg` installer (Intel, Apple Silicon, or Universal) |
+
+**Option 2: Web App**
+
+1. **Visit the app** at https://beaux-riel.github.io/WildCAT/
 2. **Click "Install"** in browser address bar → Desktop icon created
-
 3. **Done!** Use offline, works like a native app.
 
-📖 **Detailed installation guide**: [docs/INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md)
+📖 **Detailed guides**:
+- Desktop: [docs/ELECTRON_QUICK_START.md](docs/ELECTRON_QUICK_START.md)
+- Web PWA: [docs/INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md)
 
 ### For Developers
 
@@ -65,11 +81,14 @@ cd wildcat
 # Install dependencies
 npm install
 
-# Start development server
+# Start web development server
 npm run dev
+
+# OR start desktop app in development
+npm run electron:dev
 ```
 
-**Browser opens automatically at** `http://localhost:3000`
+**Browser/Electron opens automatically at** `http://localhost:3000`
 
 ---
 
@@ -78,8 +97,11 @@ npm run dev
 | Guide | Description |
 |-------|-------------|
 | [📘 README](docs/README.md) | Complete feature guide and usage instructions |
-| [💻 INSTALLATION_GUIDE](docs/INSTALLATION_GUIDE.md) | Step-by-step installation for Windows/Mac |
-| [🚀 DEPLOYMENT](docs/DEPLOYMENT.md) | Deploy to GitHub Pages, Vercel, Netlify, or custom server |
+| [💻 ELECTRON_QUICK_START](docs/ELECTRON_QUICK_START.md) | Desktop app quick start guide |
+| [🔧 ELECTRON_SETUP](docs/ELECTRON_SETUP.md) | Desktop app development and building |
+| [🚀 RELEASE_PROCESS](docs/RELEASE_PROCESS.md) | Automated releases and versioning |
+| [📱 INSTALLATION_GUIDE](docs/INSTALLATION_GUIDE.md) | PWA installation for browsers |
+| [🌐 DEPLOYMENT](docs/DEPLOYMENT.md) | Deploy web app to hosting platforms |
 | [🏗️ CLAUDE.md](CLAUDE.md) | Technical architecture and component details |
 
 ---
@@ -108,10 +130,12 @@ npm run dev
 |------------|---------|
 | [React 18.3](https://react.dev) | UI framework with hooks |
 | [Vite 5.4](https://vitejs.dev) | Build tool and dev server |
+| [Electron 39](https://electronjs.org) | Desktop app framework |
 | [Tailwind CSS 3.4](https://tailwindcss.com) | Utility-first styling |
 | [Lucide React](https://lucide.dev) | Beautiful icon library |
 | [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) | Progressive Web App support |
 | [Workbox](https://developers.google.com/web/tools/workbox) | Service worker and caching |
+| [GitHub Actions](https://github.com/features/actions) | Automated builds and releases |
 
 ---
 
@@ -119,38 +143,57 @@ npm run dev
 
 ### Commands
 
+**Web Development:**
 ```bash
-# Development server with hot reload
-npm run dev
+npm run dev              # Start web dev server
+npm run build            # Build web app
+npm run preview          # Preview web build
+npm run lint             # Lint code
+```
 
-# Production build (outputs to dist/)
-npm run build
+**Desktop Development:**
+```bash
+npm run electron:dev     # Start desktop app in dev mode
+npm run dist             # Build desktop app for current platform
+npm run dist:mac         # Build for macOS (DMG)
+npm run dist:win         # Build for Windows (EXE)
+npm run pack             # Package without installer (testing)
+```
 
-# Preview production build locally
-npm run preview
-
-# Lint code
-npm run lint
+**Release Management:**
+```bash
+./scripts/bump-version.sh patch   # Bump patch version (1.0.0 → 1.0.1)
+./scripts/bump-version.sh minor   # Bump minor version (1.0.0 → 1.1.0)
+./scripts/bump-version.sh major   # Bump major version (1.0.0 → 2.0.0)
+git push origin master --tags     # Push and trigger auto-release
 ```
 
 ### Project Structure
 
 ```
 WildCAT/
+├── electron/
+│   ├── main.js                      # Electron main process
+│   └── preload.js                   # Security bridge
 ├── src/
 │   ├── components/
-│   │   └── CSVColumnReorderer.jsx  # Main component (374 lines)
+│   │   └── CSVColumnReorderer.jsx  # Main component
 │   ├── App.jsx                      # Root component
 │   ├── main.jsx                     # Entry point + PWA registration
 │   └── index.css                    # Global styles + Tailwind
-├── public/
-│   ├── pwa-192x192.png             # PWA icon (small)
-│   ├── pwa-512x512.png             # PWA icon (large)
-│   └── vite.svg                     # Favicon
+├── .github/
+│   └── workflows/
+│       ├── release.yml              # Auto-build releases
+│       └── build-test.yml           # PR testing
+├── scripts/
+│   ├── bump-version.sh              # Version management
+│   └── manual-release.sh            # Manual release creation
+├── public/                          # Static assets (icons)
 ├── docs/                            # Documentation
-├── dist/                            # Build output (git ignored)
+├── dist/                            # Web build output (gitignored)
+├── release/                         # Desktop builds (gitignored)
+├── electron-builder.json            # Desktop build config
 ├── vite.config.js                   # Build configuration
-├── tailwind.config.js               # Styling configuration
 └── package.json                     # Dependencies
 ```
 
@@ -208,23 +251,42 @@ WildCAT/
 
 ---
 
-## 🚀 Deployment
+## 🚀 Deployment & Releases
 
-**Deploy to production in minutes:**
+### Automated Desktop Releases
 
-### Quick Deploy Options
+**Every push to `master` automatically builds and releases desktop apps!**
+
+The GitHub Actions workflow:
+1. 🏗️ Builds Windows and macOS desktop apps
+2. 📦 Packages as installers (.exe, .dmg)
+3. 🚀 Creates GitHub Release with downloadable files
+4. ✅ All automatic - no manual steps required!
+
+**To create a new release:**
+
+```bash
+# Bump version and create tag
+./scripts/bump-version.sh patch
+
+# Push to trigger automatic release
+git push origin master --tags
+
+# Wait 5-10 minutes for build to complete
+# Download from: https://github.com/beaux-riel/WildCAT/releases
+```
+
+📖 **Full release guide**: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)
+
+### Web App Deployment
+
+Deploy web version to hosting platforms:
 
 | Platform | Cost | Setup Time | Best For |
 |----------|------|------------|----------|
+| [**GitHub Pages**](https://pages.github.com) | Free | 10 min | Git-based, simple (current setup) |
 | [**Vercel**](https://vercel.com) | Free | 5 min | Fastest CDN, auto-deploys |
 | [**Netlify**](https://netlify.com) | Free | 2 min | Drag-and-drop deployment |
-| [**GitHub Pages**](https://pages.github.com) | Free | 10 min | Git-based, simple |
-
-```bash
-# Example: Deploy to Vercel
-npm i -g vercel
-vercel --prod
-```
 
 📖 **Full deployment guide**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 

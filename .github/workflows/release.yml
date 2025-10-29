@@ -1,0 +1,217 @@
+name: Build and Release Desktop Apps
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          elif [[ "${{ github.event.inputs.version }}" != "" ]]; then
+            VERSION=${{ github.event.inputs.version }}
+          else
+            VERSION="v$(node -p "require('./package.json').version")-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: WildCAT ${{ steps.get_version.outputs.version }}
+          body: |
+            ## WildCAT Desktop App Release
+
+            ### Downloads
+            - **Windows**: Download the `.exe` installer below
+            - **macOS**: Download the `.dmg` installer below
+
+            ### Changes
+            See commit history for details.
+
+            ### Installation
+            1. Download the appropriate installer for your platform
+            2. Run the installer
+            3. Launch WildCAT from your applications
+
+            ### Features
+            - CSV column reordering with drag-and-drop
+            - Save and load column arrangements
+            - Export reordered CSV files
+            - Native file dialogs
+            - Offline support
+          draft: false
+          prerelease: false
+
+  build-mac:
+    name: Build macOS
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite app
+        run: npm run build
+
+      - name: Build Electron app (macOS)
+        run: npm run dist:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List release files
+        run: ls -lh release/
+
+      - name: Upload DMG (x64)
+        if: always()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/WildCAT-${{ needs.create-release.outputs.version }}-x64.dmg
+          asset_name: WildCAT-${{ needs.create-release.outputs.version }}-mac-x64.dmg
+          asset_content_type: application/x-apple-diskimage
+        continue-on-error: true
+
+      - name: Upload DMG (arm64)
+        if: always()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/WildCAT-${{ needs.create-release.outputs.version }}-arm64.dmg
+          asset_name: WildCAT-${{ needs.create-release.outputs.version }}-mac-arm64.dmg
+          asset_content_type: application/x-apple-diskimage
+        continue-on-error: true
+
+      - name: Upload Universal DMG
+        if: always()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/WildCAT-${{ needs.create-release.outputs.version }}.dmg
+          asset_name: WildCAT-${{ needs.create-release.outputs.version }}-mac-universal.dmg
+          asset_content_type: application/x-apple-diskimage
+        continue-on-error: true
+
+      - name: Find and upload DMG (fallback)
+        if: always()
+        run: |
+          DMG_FILE=$(find release -name "*.dmg" | head -1)
+          if [ -n "$DMG_FILE" ]; then
+            echo "Found DMG: $DMG_FILE"
+            curl -L \
+              -X POST \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/x-apple-diskimage" \
+              --data-binary "@$DMG_FILE" \
+              "${{ needs.create-release.outputs.upload_url }}?name=WildCAT-${{ needs.create-release.outputs.version }}-mac.dmg"
+          fi
+
+  build-windows:
+    name: Build Windows
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite app
+        run: npm run build
+
+      - name: Build Electron app (Windows)
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List release files
+        run: Get-ChildItem -Path release -Recurse
+        shell: powershell
+
+      - name: Upload Windows Installer (x64)
+        if: always()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/WildCAT-${{ needs.create-release.outputs.version }}-x64-setup.exe
+          asset_name: WildCAT-${{ needs.create-release.outputs.version }}-win-x64-setup.exe
+          asset_content_type: application/x-msdownload
+        continue-on-error: true
+
+      - name: Upload Windows Installer (ia32)
+        if: always()
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release/WildCAT-${{ needs.create-release.outputs.version }}-ia32-setup.exe
+          asset_name: WildCAT-${{ needs.create-release.outputs.version }}-win-ia32-setup.exe
+          asset_content_type: application/x-msdownload
+        continue-on-error: true
+
+      - name: Find and upload EXE (fallback)
+        if: always()
+        shell: powershell
+        run: |
+          $exeFile = Get-ChildItem -Path release -Filter *.exe -Recurse | Select-Object -First 1
+          if ($exeFile) {
+            Write-Host "Found EXE: $($exeFile.FullName)"
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+              "Content-Type" = "application/x-msdownload"
+            }
+            $uploadUrl = "${{ needs.create-release.outputs.upload_url }}" -replace '\{\?.*\}', "?name=WildCAT-${{ needs.create-release.outputs.version }}-win-setup.exe"
+            Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $headers -InFile $exeFile.FullName
+          }

@@ -1,13 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import electron from 'vite-plugin-electron'
+import renderer from 'vite-plugin-electron-renderer'
+
+// Check if running in Electron environment
+const isElectron = process.env.ELECTRON_ENV === 'development' || process.env.npm_lifecycle_script?.includes('electron')
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/WildCAT/',
+  base: isElectron ? './' : '/WildCAT/',
   plugins: [
     react(),
-    VitePWA({
+    // Only enable PWA for web builds
+    !isElectron && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
@@ -61,8 +67,37 @@ export default defineConfig({
           }
         ]
       }
-    })
-  ],
+    }),
+    // Electron plugins
+    isElectron && electron([
+      {
+        entry: 'electron/main.js',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron']
+            }
+          }
+        }
+      },
+      {
+        entry: 'electron/preload.js',
+        onstart(options) {
+          options.reload()
+        },
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron']
+            }
+          }
+        }
+      }
+    ]),
+    isElectron && renderer()
+  ].filter(Boolean),
   build: {
     // Optimize build output
     minify: 'esbuild',
