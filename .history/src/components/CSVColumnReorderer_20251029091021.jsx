@@ -182,7 +182,7 @@ const CSVColumnReorderer = () => {
             <img
               src="/images/wildcat-logo-placeholder.png"
               alt="WildCAT Logo"
-              className="w-32 h-32 object-contain"
+              className="w-32 h-32 object-contain rounded-md"
               onError={(e) => {
                 // Fallback to FileText icon if logo not found
                 e.target.style.display = 'none';

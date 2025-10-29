@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp } from 'lucide-react';
+import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp, Eye, EyeOff, Plus } from 'lucide-react';
 
 const CSVColumnReorderer = () => {
   const [csvData, setCsvData] = useState([]);
@@ -8,6 +8,7 @@ const CSVColumnReorderer = () => {
   const [savedArrangements, setSavedArrangements] = useState([]);
   const [arrangementName, setArrangementName] = useState('');
   const [fileName, setFileName] = useState('');
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // Load saved arrangements from localStorage on mount
   useEffect(() => {
@@ -18,8 +19,7 @@ const CSVColumnReorderer = () => {
   }, []);
 
   // Parse CSV file
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+  const parseFile = (file) => {
     if (!file) return;
 
     setFileName(file.name);
@@ -35,7 +35,9 @@ const CSVColumnReorderer = () => {
         setColumns(headers.map((header, index) => ({
           id: index,
           name: header,
-          originalIndex: index
+          originalIndex: index,
+          excluded: false,
+          isCustom: false
         })));
         
         // Parse data rows
@@ -67,6 +69,42 @@ const CSVColumnReorderer = () => {
     reader.readAsText(file);
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    parseFile(file);
+  };
+
+  // File drag and drop handlers
+  const handleFileDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleFileDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'text/csv') {
+      parseFile(file);
+    } else if (file) {
+      alert('Please drop a CSV file');
+    }
+  };
+
   // Drag and drop handlers
   const handleDragStart = (e, index) => {
     setDraggedItem(index);
@@ -94,6 +132,39 @@ const CSVColumnReorderer = () => {
     setDraggedItem(null);
   };
 
+  // Toggle column exclusion
+  const toggleColumnExclusion = (index) => {
+    const newColumns = [...columns];
+    newColumns[index].excluded = !newColumns[index].excluded;
+    setColumns(newColumns);
+  };
+
+  // Add blank column
+  const addBlankColumn = () => {
+    const newColumnId = Date.now();
+    const newColumn = {
+      id: newColumnId,
+      name: `New Column ${columns.filter(c => c.isCustom).length + 1}`,
+      originalIndex: -1, // Custom columns don't have original index
+      excluded: false,
+      isCustom: true
+    };
+    setColumns([...columns, newColumn]);
+  };
+
+  // Delete custom column
+  const deleteCustomColumn = (index) => {
+    const newColumns = columns.filter((_, i) => i !== index);
+    setColumns(newColumns);
+  };
+
+  // Rename column
+  const renameColumn = (index, newName) => {
+    const newColumns = [...columns];
+    newColumns[index].name = newName;
+    setColumns(newColumns);
+  };
+
   // Save current arrangement
   const saveArrangement = () => {
     if (!arrangementName.trim()) {
@@ -104,7 +175,12 @@ const CSVColumnReorderer = () => {
     const newArrangement = {
       id: Date.now(),
       name: arrangementName,
-      columnOrder: columns.map(col => col.originalIndex)
+      columnOrder: columns.map(col => ({
+        originalIndex: col.originalIndex,
+        name: col.name,
+        excluded: col.excluded,
+        isCustom: col.isCustom
+      }))
     };
     
     const updated = [...savedArrangements, newArrangement];
@@ -119,15 +195,47 @@ const CSVColumnReorderer = () => {
       alert('Please upload a CSV file first');
       return;
     }
-    
-    const reorderedColumns = arrangement.columnOrder
-      .map(originalIndex => columns.find(col => col.originalIndex === originalIndex))
-      .filter(Boolean);
-    
-    if (reorderedColumns.length === columns.length) {
-      setColumns(reorderedColumns);
+
+    // Handle both old format (array of indices) and new format (array of objects)
+    const isOldFormat = typeof arrangement.columnOrder[0] === 'number';
+
+    if (isOldFormat) {
+      // Legacy support for old arrangements
+      const reorderedColumns = arrangement.columnOrder
+        .map(originalIndex => columns.find(col => col.originalIndex === originalIndex))
+        .filter(Boolean);
+
+      if (reorderedColumns.length === columns.length) {
+        setColumns(reorderedColumns);
+      } else {
+        alert('This arrangement doesn\'t match the current CSV structure');
+      }
     } else {
-      alert('This arrangement doesn\'t match the current CSV structure');
+      // New format with excluded and custom columns
+      const reorderedColumns = arrangement.columnOrder.map(colData => {
+        if (colData.isCustom) {
+          // Recreate custom column
+          return {
+            id: Date.now() + Math.random(),
+            name: colData.name,
+            originalIndex: -1,
+            excluded: colData.excluded || false,
+            isCustom: true
+          };
+        } else {
+          // Find matching column from current CSV
+          const matchedColumn = columns.find(col => col.originalIndex === colData.originalIndex);
+          if (matchedColumn) {
+            return {
+              ...matchedColumn,
+              excluded: colData.excluded || false
+            };
+          }
+          return null;
+        }
+      }).filter(Boolean);
+
+      setColumns(reorderedColumns);
     }
   };
 
@@ -141,24 +249,28 @@ const CSVColumnReorderer = () => {
   // Export reordered CSV
   const exportCSV = () => {
     if (columns.length === 0) return;
-    
+
+    // Filter out excluded columns
+    const activeColumns = columns.filter(col => !col.excluded);
+
     // Create header row
-    const headers = columns.map(col => 
-      col.name.includes(',') || col.name.includes('"') 
-        ? `"${col.name.replace(/"/g, '""')}"` 
+    const headers = activeColumns.map(col =>
+      col.name.includes(',') || col.name.includes('"')
+        ? `"${col.name.replace(/"/g, '""')}"`
         : col.name
     ).join(',');
-    
+
     // Create data rows with reordered columns
     const rows = csvData.map(row => {
-      return columns.map(col => {
-        const value = row[col.originalIndex] || '';
+      return activeColumns.map(col => {
+        // Custom columns get empty values
+        const value = col.isCustom ? '' : (row[col.originalIndex] || '');
         return value.includes(',') || value.includes('"') || value.includes('\n')
           ? `"${value.replace(/"/g, '""')}"`
           : value;
       }).join(',');
     });
-    
+
     const csvContent = [headers, ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -262,10 +374,22 @@ const CSVColumnReorderer = () => {
           {/* File Upload */}
           <div className="mb-8">
             <label className="block">
-              <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer bg-blue-50">
-                <Upload className="mx-auto text-blue-600 mb-3" size={48} />
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                  isDraggingFile
+                    ? 'border-blue-600 bg-blue-100 scale-105'
+                    : 'border-blue-300 bg-blue-50 hover:border-blue-500'
+                }`}
+                onDragEnter={handleFileDragEnter}
+                onDragOver={handleFileDragOver}
+                onDragLeave={handleFileDragLeave}
+                onDrop={handleFileDrop}
+              >
+                <Upload className={`mx-auto mb-3 transition-transform ${
+                  isDraggingFile ? 'text-blue-600 scale-110' : 'text-blue-600'
+                }`} size={48} />
                 <p className="text-lg font-medium text-gray-700">
-                  Click to upload CSV file
+                  {isDraggingFile ? 'Drop CSV file here' : 'Click or drag to upload CSV file'}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
                   {fileName || 'No file selected'}
@@ -287,14 +411,23 @@ const CSVColumnReorderer = () => {
                 <h2 className="text-xl font-semibold text-gray-700">
                   Drag columns to reorder
                 </h2>
-                <button
-                  onClick={resetOrder}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Reset Order
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={addBlankColumn}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={18} />
+                    Add Column
+                  </button>
+                  <button
+                    onClick={resetOrder}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Reset Order
+                  </button>
+                </div>
               </div>
-              
+
               <div className="flex flex-wrap gap-3 p-4 bg-gray-50 rounded-lg min-h-[100px]">
                 {columns.map((column, index) => (
                   <div
@@ -304,20 +437,68 @@ const CSVColumnReorderer = () => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, index)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-4 py-3 bg-white border-2 rounded-lg cursor-move transition-all ${
-                      draggedItem === index 
-                        ? 'opacity-50 border-blue-400' 
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-3 bg-white border-2 rounded-lg transition-all ${
+                      column.excluded
+                        ? 'opacity-40 border-red-300 bg-red-50'
+                        : draggedItem === index
+                          ? 'opacity-50 border-blue-400'
+                          : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                    } ${column.isCustom ? 'border-green-300 bg-green-50' : ''}`}
                   >
-                    <GripVertical size={16} className="text-gray-400" />
-                    <span className="font-medium text-gray-700">{column.name}</span>
+                    <GripVertical size={16} className="text-gray-400 cursor-move" />
+                    {column.isCustom ? (
+                      <input
+                        type="text"
+                        value={column.name}
+                        onChange={(e) => renameColumn(index, e.target.value)}
+                        className="font-medium text-gray-700 bg-transparent border-none outline-none focus:ring-1 focus:ring-green-400 rounded px-1"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="font-medium text-gray-700">{column.name}</span>
+                    )}
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
                       {index + 1}
                     </span>
+                    {column.isCustom && (
+                      <span className="text-xs text-green-700 bg-green-200 px-2 py-1 rounded">
+                        Custom
+                      </span>
+                    )}
+                    <div className="flex gap-1 ml-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleColumnExclusion(index);
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          column.excluded
+                            ? 'text-red-600 hover:bg-red-100'
+                            : 'text-gray-400 hover:bg-gray-100'
+                        }`}
+                        title={column.excluded ? 'Include column' : 'Exclude column'}
+                      >
+                        {column.excluded ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                      {column.isCustom && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCustomColumn(index);
+                          }}
+                          className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                          title="Delete custom column"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Click the eye icon to exclude columns from export. Custom columns appear with empty values.
+              </p>
             </div>
           )}
 
@@ -427,9 +608,10 @@ const CSVColumnReorderer = () => {
                 <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
                   <thead className="bg-gray-50">
                     <tr>
-                      {columns.map((column, index) => (
-                        <th key={column.id} className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-b">
+                      {columns.filter(col => !col.excluded).map((column) => (
+                        <th key={column.id} className={`px-4 py-3 text-left text-sm font-medium text-gray-700 border-b ${column.isCustom ? 'bg-green-50' : ''}`}>
                           {column.name}
+                          {column.isCustom && <span className="ml-2 text-xs text-green-600">(Custom)</span>}
                         </th>
                       ))}
                     </tr>
@@ -437,9 +619,9 @@ const CSVColumnReorderer = () => {
                   <tbody>
                     {csvData.slice(0, 10).map((row, rowIndex) => (
                       <tr key={rowIndex} className="hover:bg-gray-50">
-                        {columns.map((column) => (
-                          <td key={column.id} className="px-4 py-3 text-sm text-gray-600 border-b">
-                            {row[column.originalIndex] || ''}
+                        {columns.filter(col => !col.excluded).map((column) => (
+                          <td key={column.id} className={`px-4 py-3 text-sm text-gray-600 border-b ${column.isCustom ? 'bg-green-50 italic text-gray-400' : ''}`}>
+                            {column.isCustom ? '(empty)' : (row[column.originalIndex] || '')}
                           </td>
                         ))}
                       </tr>

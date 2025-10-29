@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp } from 'lucide-react';
+import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp, Eye, EyeOff, Plus, CheckSquare } from 'lucide-react';
 
 const CSVColumnReorderer = () => {
   const [csvData, setCsvData] = useState([]);
@@ -8,8 +8,8 @@ const CSVColumnReorderer = () => {
   const [savedArrangements, setSavedArrangements] = useState([]);
   const [arrangementName, setArrangementName] = useState('');
   const [fileName, setFileName] = useState('');
-  const [showImport, setShowImport] = useState(false);
   const [selectedArrangements, setSelectedArrangements] = useState(new Set());
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // Load saved arrangements from localStorage on mount
   useEffect(() => {
@@ -20,8 +20,7 @@ const CSVColumnReorderer = () => {
   }, []);
 
   // Parse CSV file
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+  const parseFile = (file) => {
     if (!file) return;
 
     setFileName(file.name);
@@ -37,7 +36,9 @@ const CSVColumnReorderer = () => {
         setColumns(headers.map((header, index) => ({
           id: index,
           name: header,
-          originalIndex: index
+          originalIndex: index,
+          excluded: false,
+          isCustom: false
         })));
         
         // Parse data rows
@@ -69,6 +70,42 @@ const CSVColumnReorderer = () => {
     reader.readAsText(file);
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    parseFile(file);
+  };
+
+  // File drag and drop handlers
+  const handleFileDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleFileDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'text/csv') {
+      parseFile(file);
+    } else if (file) {
+      alert('Please drop a CSV file');
+    }
+  };
+
   // Drag and drop handlers
   const handleDragStart = (e, index) => {
     setDraggedItem(index);
@@ -96,6 +133,39 @@ const CSVColumnReorderer = () => {
     setDraggedItem(null);
   };
 
+  // Toggle column exclusion
+  const toggleColumnExclusion = (index) => {
+    const newColumns = [...columns];
+    newColumns[index].excluded = !newColumns[index].excluded;
+    setColumns(newColumns);
+  };
+
+  // Add blank column
+  const addBlankColumn = () => {
+    const newColumnId = Date.now();
+    const newColumn = {
+      id: newColumnId,
+      name: `New Column ${columns.filter(c => c.isCustom).length + 1}`,
+      originalIndex: -1, // Custom columns don't have original index
+      excluded: false,
+      isCustom: true
+    };
+    setColumns([...columns, newColumn]);
+  };
+
+  // Delete custom column
+  const deleteCustomColumn = (index) => {
+    const newColumns = columns.filter((_, i) => i !== index);
+    setColumns(newColumns);
+  };
+
+  // Rename column
+  const renameColumn = (index, newName) => {
+    const newColumns = [...columns];
+    newColumns[index].name = newName;
+    setColumns(newColumns);
+  };
+
   // Save current arrangement
   const saveArrangement = () => {
     if (!arrangementName.trim()) {
@@ -106,7 +176,12 @@ const CSVColumnReorderer = () => {
     const newArrangement = {
       id: Date.now(),
       name: arrangementName,
-      columnOrder: columns.map(col => col.originalIndex)
+      columnOrder: columns.map(col => ({
+        originalIndex: col.originalIndex,
+        name: col.name,
+        excluded: col.excluded,
+        isCustom: col.isCustom
+      }))
     };
     
     const updated = [...savedArrangements, newArrangement];
@@ -121,15 +196,47 @@ const CSVColumnReorderer = () => {
       alert('Please upload a CSV file first');
       return;
     }
-    
-    const reorderedColumns = arrangement.columnOrder
-      .map(originalIndex => columns.find(col => col.originalIndex === originalIndex))
-      .filter(Boolean);
-    
-    if (reorderedColumns.length === columns.length) {
-      setColumns(reorderedColumns);
+
+    // Handle both old format (array of indices) and new format (array of objects)
+    const isOldFormat = typeof arrangement.columnOrder[0] === 'number';
+
+    if (isOldFormat) {
+      // Legacy support for old arrangements
+      const reorderedColumns = arrangement.columnOrder
+        .map(originalIndex => columns.find(col => col.originalIndex === originalIndex))
+        .filter(Boolean);
+
+      if (reorderedColumns.length === columns.length) {
+        setColumns(reorderedColumns);
+      } else {
+        alert('This arrangement doesn\'t match the current CSV structure');
+      }
     } else {
-      alert('This arrangement doesn\'t match the current CSV structure');
+      // New format with excluded and custom columns
+      const reorderedColumns = arrangement.columnOrder.map(colData => {
+        if (colData.isCustom) {
+          // Recreate custom column
+          return {
+            id: Date.now() + Math.random(),
+            name: colData.name,
+            originalIndex: -1,
+            excluded: colData.excluded || false,
+            isCustom: true
+          };
+        } else {
+          // Find matching column from current CSV
+          const matchedColumn = columns.find(col => col.originalIndex === colData.originalIndex);
+          if (matchedColumn) {
+            return {
+              ...matchedColumn,
+              excluded: colData.excluded || false
+            };
+          }
+          return null;
+        }
+      }).filter(Boolean);
+
+      setColumns(reorderedColumns);
     }
   };
 
@@ -143,24 +250,28 @@ const CSVColumnReorderer = () => {
   // Export reordered CSV
   const exportCSV = () => {
     if (columns.length === 0) return;
-    
+
+    // Filter out excluded columns
+    const activeColumns = columns.filter(col => !col.excluded);
+
     // Create header row
-    const headers = columns.map(col => 
-      col.name.includes(',') || col.name.includes('"') 
-        ? `"${col.name.replace(/"/g, '""')}"` 
+    const headers = activeColumns.map(col =>
+      col.name.includes(',') || col.name.includes('"')
+        ? `"${col.name.replace(/"/g, '""')}"`
         : col.name
     ).join(',');
-    
+
     // Create data rows with reordered columns
     const rows = csvData.map(row => {
-      return columns.map(col => {
-        const value = row[col.originalIndex] || '';
+      return activeColumns.map(col => {
+        // Custom columns get empty values
+        const value = col.isCustom ? '' : (row[col.originalIndex] || '');
         return value.includes(',') || value.includes('"') || value.includes('\n')
           ? `"${value.replace(/"/g, '""')}"`
           : value;
       }).join(',');
     });
-    
+
     const csvContent = [headers, ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -171,9 +282,13 @@ const CSVColumnReorderer = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Reset to original order
+  // Reset to original order and make all visible
   const resetOrder = () => {
-    setColumns(columns.sort((a, b) => a.originalIndex - b.originalIndex));
+    const resetColumns = columns
+      .filter(col => !col.isCustom) // Remove custom columns
+      .map(col => ({ ...col, excluded: false })) // Make all visible
+      .sort((a, b) => a.originalIndex - b.originalIndex); // Sort by original order
+    setColumns(resetColumns);
   };
 
   // Toggle arrangement selection
@@ -324,10 +439,22 @@ const CSVColumnReorderer = () => {
           {/* File Upload */}
           <div className="mb-8">
             <label className="block">
-              <div className="border-2 border-dashed border-wildcat-green rounded-lg p-8 text-center hover:border-wildcat-orange transition-colors cursor-pointer bg-wildcat-cream/30">
-                <Upload className="mx-auto text-wildcat-orange mb-3" size={48} />
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer ${
+                  isDraggingFile
+                    ? 'border-wildcat-orange bg-wildcat-cream scale-105 shadow-lg'
+                    : 'border-wildcat-green bg-wildcat-cream/30 hover:border-wildcat-orange'
+                }`}
+                onDragEnter={handleFileDragEnter}
+                onDragOver={handleFileDragOver}
+                onDragLeave={handleFileDragLeave}
+                onDrop={handleFileDrop}
+              >
+                <Upload className={`mx-auto mb-3 transition-transform ${
+                  isDraggingFile ? 'text-wildcat-orange scale-110' : 'text-wildcat-orange'
+                }`} size={48} />
                 <p className="text-lg font-medium text-gray-700">
-                  Click to upload CSV file
+                  {isDraggingFile ? 'Drop CSV file here' : 'Click or drag to upload CSV file'}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
                   {fileName || 'No file selected'}
@@ -349,14 +476,23 @@ const CSVColumnReorderer = () => {
                 <h2 className="text-xl font-semibold text-gray-700">
                   Drag columns to reorder
                 </h2>
-                <button
-                  onClick={resetOrder}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Reset Order
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={addBlankColumn}
+                    className="px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={18} />
+                    Add Column
+                  </button>
+                  <button
+                    onClick={resetOrder}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
               </div>
-              
+
               <div className="flex flex-wrap gap-3 p-4 bg-gray-50 rounded-lg min-h-[100px]">
                 {columns.map((column, index) => (
                   <div
@@ -366,20 +502,68 @@ const CSVColumnReorderer = () => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, index)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-4 py-3 bg-white border-2 rounded-lg cursor-move transition-all ${
-                      draggedItem === index
-                        ? 'opacity-50 border-wildcat-orange shadow-lg'
-                        : 'border-gray-200 hover:border-wildcat-green hover:shadow-md'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-3 bg-white border-2 rounded-lg transition-all ${
+                      column.excluded
+                        ? 'opacity-40 border-red-300 bg-red-50'
+                        : draggedItem === index
+                          ? 'opacity-50 border-wildcat-orange shadow-lg'
+                          : 'border-gray-200 hover:border-wildcat-green hover:shadow-md'
+                    } ${column.isCustom ? 'border-wildcat-green bg-wildcat-cream/50' : ''}`}
                   >
-                    <GripVertical size={16} className="text-gray-400" />
-                    <span className="font-medium text-gray-700">{column.name}</span>
+                    <GripVertical size={16} className="text-gray-400 cursor-move" />
+                    {column.isCustom ? (
+                      <input
+                        type="text"
+                        value={column.name}
+                        onChange={(e) => renameColumn(index, e.target.value)}
+                        className="font-medium text-gray-700 bg-transparent border-none outline-none focus:ring-1 focus:ring-wildcat-green rounded px-1"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="font-medium text-gray-700">{column.name}</span>
+                    )}
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
                       {index + 1}
                     </span>
+                    {column.isCustom && (
+                      <span className="text-xs text-wildcat-green bg-wildcat-cream px-2 py-1 rounded font-medium">
+                        Custom
+                      </span>
+                    )}
+                    <div className="flex gap-1 ml-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleColumnExclusion(index);
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          column.excluded
+                            ? 'text-red-600 hover:bg-red-100'
+                            : 'text-gray-400 hover:bg-gray-100'
+                        }`}
+                        title={column.excluded ? 'Include column' : 'Exclude column'}
+                      >
+                        {column.excluded ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                      {column.isCustom && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCustomColumn(index);
+                          }}
+                          className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                          title="Delete custom column"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Click the eye icon to exclude columns from export. Custom columns appear with empty values.
+              </p>
             </div>
           )}
 
@@ -409,54 +593,6 @@ const CSVColumnReorderer = () => {
             </div>
           )}
 
-          {/* Import Button */}
-          {!showImport && (
-            <div className="mb-8 flex justify-center">
-              <button
-                onClick={() => setShowImport(true)}
-                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
-              >
-                <FileUp size={20} />
-                Import Arrangements
-              </button>
-            </div>
-          )}
-
-          {/* Import Arrangements Section */}
-          {showImport && (
-            <div className="mb-8 p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-semibold text-wildcat-brown flex items-center gap-2">
-                  <FileUp className="text-purple-600" size={20} />
-                  Import Arrangements
-                </h3>
-                <button
-                  onClick={() => setShowImport(false)}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-              <label className="block">
-                <div className="border-2 border-dashed border-purple-300 rounded-lg p-4 text-center hover:border-purple-500 transition-colors cursor-pointer bg-white">
-                  <FileUp className="mx-auto text-purple-600 mb-2" size={32} />
-                  <p className="text-sm font-medium text-gray-700">
-                    Click to import arrangements from JSON file
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Import previously exported arrangements
-                  </p>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportArrangements}
-                    className="hidden"
-                  />
-                </div>
-              </label>
-            </div>
-          )}
-
           {/* Saved Arrangements */}
           {savedArrangements.length > 0 && (
             <div className="mb-8">
@@ -464,31 +600,62 @@ const CSVColumnReorderer = () => {
                 <h3 className="text-lg font-semibold text-gray-700">
                   Saved Arrangements
                 </h3>
-                <div className="flex gap-2">
-                  {selectedArrangements.size > 0 && (
+                {/* Import/Export Toolbar */}
+                <div className="flex gap-2 items-center">
+                  {/* Import Button */}
+                  <label className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <FileUp size={16} />
+                    Import
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportArrangements}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Export All Button */}
+                  <button
+                    onClick={() => {
+                      setSelectedArrangements(new Set());
+                      setTimeout(() => exportArrangements(), 0);
+                    }}
+                    className="px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-green/90 transition-colors flex items-center gap-2 text-sm font-medium"
+                    title="Export all arrangements"
+                  >
+                    <FileDown size={16} />
+                    Export All
+                  </button>
+
+                  {/* Divider */}
+                  <div className="h-8 w-px bg-gray-300"></div>
+
+                  {/* Select & Export or Show Selection Count */}
+                  {selectedArrangements.size === 0 ? (
+                    <button
+                      onClick={selectAllArrangements}
+                      className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center gap-2 text-sm font-medium"
+                      title="Select arrangements to export"
+                    >
+                      <CheckSquare size={16} />
+                      Select to Export
+                    </button>
+                  ) : (
                     <>
                       <button
                         onClick={deselectAllArrangements}
                         className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
                       >
-                        Deselect All
+                        Clear ({selectedArrangements.size})
                       </button>
                       <button
                         onClick={exportArrangements}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                        className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center gap-2 text-sm font-medium"
                       >
                         <FileDown size={16} />
-                        Export Selected ({selectedArrangements.size})
+                        Export Selected
                       </button>
                     </>
-                  )}
-                  {selectedArrangements.size === 0 && (
-                    <button
-                      onClick={selectAllArrangements}
-                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
-                    >
-                      Select All
-                    </button>
                   )}
                 </div>
               </div>
@@ -544,9 +711,10 @@ const CSVColumnReorderer = () => {
                 <table className="min-w-full border border-wildcat-green/30 rounded-lg overflow-hidden">
                   <thead className="bg-wildcat-cream/50">
                     <tr>
-                      {columns.map((column, index) => (
-                        <th key={column.id} className="px-4 py-3 text-left text-sm font-medium text-wildcat-brown border-b border-wildcat-green/30">
+                      {columns.filter(col => !col.excluded).map((column) => (
+                        <th key={column.id} className={`px-4 py-3 text-left text-sm font-medium text-wildcat-brown border-b border-wildcat-green/30 ${column.isCustom ? 'bg-wildcat-green/20' : ''}`}>
                           {column.name}
+                          {column.isCustom && <span className="ml-2 text-xs text-wildcat-green">(Custom)</span>}
                         </th>
                       ))}
                     </tr>
@@ -554,9 +722,9 @@ const CSVColumnReorderer = () => {
                   <tbody>
                     {csvData.slice(0, 10).map((row, rowIndex) => (
                       <tr key={rowIndex} className="hover:bg-gray-50">
-                        {columns.map((column) => (
-                          <td key={column.id} className="px-4 py-3 text-sm text-gray-600 border-b">
-                            {row[column.originalIndex] || ''}
+                        {columns.filter(col => !col.excluded).map((column) => (
+                          <td key={column.id} className={`px-4 py-3 text-sm text-gray-600 border-b ${column.isCustom ? 'bg-wildcat-cream/30 italic text-gray-400' : ''}`}>
+                            {column.isCustom ? '(empty)' : (row[column.originalIndex] || '')}
                           </td>
                         ))}
                       </tr>
