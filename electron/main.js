@@ -1,5 +1,10 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron');
-const path = require('path');
+import { app, BrowserWindow, Menu, dialog } from 'electron';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let mainWindow;
 
