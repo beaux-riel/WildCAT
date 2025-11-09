@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp, Eye, EyeOff, Plus, CheckSquare } from 'lucide-react';
+import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp, Eye, EyeOff, Plus, CheckSquare, Lightbulb, X } from 'lucide-react';
 
 const CSVColumnReorderer = () => {
   const [csvData, setCsvData] = useState([]);
@@ -11,6 +11,7 @@ const CSVColumnReorderer = () => {
   const [selectedArrangements, setSelectedArrangements] = useState(new Set());
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [previewArrangement, setPreviewArrangement] = useState(null);
+  const [recommendedArrangements, setRecommendedArrangements] = useState([]);
 
   // Load saved arrangements from localStorage on mount
   useEffect(() => {
@@ -34,20 +35,21 @@ const CSVColumnReorderer = () => {
       if (rows.length > 0) {
         // Parse headers
         const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        setColumns(headers.map((header, index) => ({
+        const newColumns = headers.map((header, index) => ({
           id: index,
           name: header,
           originalIndex: index,
           excluded: false,
           isCustom: false
-        })));
-        
+        }));
+        setColumns(newColumns);
+
         // Parse data rows
         const dataRows = rows.slice(1).map(row => {
           const values = [];
           let current = '';
           let inQuotes = false;
-          
+
           for (let i = 0; i < row.length; i++) {
             const char = row[i];
             if (char === '"') {
@@ -60,11 +62,15 @@ const CSVColumnReorderer = () => {
             }
           }
           values.push(current.trim());
-          
+
           return values;
         });
-        
+
         setCsvData(dataRows);
+
+        // Find and recommend matching arrangements
+        const matches = findMatchingArrangements(newColumns);
+        setRecommendedArrangements(matches);
       }
     };
     
@@ -246,6 +252,41 @@ const CSVColumnReorderer = () => {
     const updated = savedArrangements.filter(arr => arr.id !== id);
     setSavedArrangements(updated);
     localStorage.setItem('csvColumnArrangements', JSON.stringify(updated));
+  };
+
+  // Find matching arrangements based on column names
+  const findMatchingArrangements = (uploadedColumns) => {
+    if (!uploadedColumns || uploadedColumns.length === 0 || savedArrangements.length === 0) {
+      return [];
+    }
+
+    const uploadedColumnNames = new Set(uploadedColumns.map(col => col.name.toLowerCase().trim()));
+
+    const matches = savedArrangements.map(arrangement => {
+      const arrangementColumns = arrangement.columnOrder
+        .filter(col => !col.isCustom) // Exclude custom columns from matching
+        .map(col => col.name.toLowerCase().trim());
+
+      // Count how many arrangement columns exist in the uploaded CSV
+      const matchingCount = arrangementColumns.filter(name =>
+        uploadedColumnNames.has(name)
+      ).length;
+
+      const matchPercentage = arrangementColumns.length > 0
+        ? (matchingCount / arrangementColumns.length) * 100
+        : 0;
+
+      return {
+        arrangement,
+        matchingCount,
+        matchPercentage,
+        totalColumns: arrangementColumns.length
+      };
+    })
+    .filter(match => match.matchPercentage >= 50) // Only show arrangements with >50% match
+    .sort((a, b) => b.matchPercentage - a.matchPercentage); // Sort by best match first
+
+    return matches;
   };
 
   // Export reordered CSV
@@ -471,6 +512,93 @@ const CSVColumnReorderer = () => {
               </div>
             </label>
           </div>
+
+          {/* Recommended Arrangements */}
+          {recommendedArrangements.length > 0 && (
+            <div className="mb-8 p-4 md:p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border-2 border-blue-300 shadow-lg">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="text-blue-600 mt-1 flex-shrink-0" size={24} />
+                  <div>
+                    <h3 className="text-lg font-bold text-blue-900 mb-1">
+                      It looks like you're working on a familiar dataset!
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      Would you like to apply one of the following saved arrangements?
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRecommendedArrangements([])}
+                  className="text-blue-600 hover:bg-blue-100 rounded-lg p-1 transition-colors flex-shrink-0"
+                  title="Dismiss recommendations"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {recommendedArrangements.map(({ arrangement, matchPercentage, matchingCount, totalColumns }) => (
+                  <div
+                    key={arrangement.id}
+                    className="bg-white rounded-lg border-2 border-blue-200 p-4 hover:border-blue-400 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Star className="text-wildcat-orange flex-shrink-0" size={18} />
+                        <span className="font-semibold text-gray-800 truncate">
+                          {arrangement.name}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-gray-600">Match</span>
+                        <span className={`font-bold ${
+                          matchPercentage >= 90 ? 'text-green-600' :
+                          matchPercentage >= 70 ? 'text-blue-600' :
+                          'text-yellow-600'
+                        }`}>
+                          {Math.round(matchPercentage)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            matchPercentage >= 90 ? 'bg-green-500' :
+                            matchPercentage >= 70 ? 'bg-blue-500' :
+                            'bg-yellow-500'
+                          }`}
+                          style={{ width: `${matchPercentage}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {matchingCount} of {totalColumns} columns match
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPreviewArrangement(arrangement)}
+                        className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                      >
+                        <Eye size={14} />
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => {
+                          loadArrangement(arrangement);
+                          setRecommendedArrangements([]);
+                        }}
+                        className="flex-1 px-3 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors text-sm font-medium"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Column Reordering Section */}
           {columns.length > 0 && (
