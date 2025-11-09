@@ -472,7 +472,7 @@ const CSVColumnReorderer = () => {
               }}
             />
             <FileText className="text-wildcat-orange hidden" />
-            <div className="flex flex-col items-center md:items-start">
+            <div className="flex flex-col items-start">
               <span className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange bg-clip-text text-transparent">
                 WildCAT
               </span>
