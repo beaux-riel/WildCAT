@@ -462,7 +462,7 @@ const CSVColumnReorderer = () => {
         <div className="bg-white rounded-xl shadow-xl p-4 md:p-8">
           <h1 className="text-3xl font-bold text-wildcat-brown mb-8 flex flex-col md:flex-row items-center md:gap-3 gap-4">
             <img
-              src="/images/wildcat-logo-placeholder.png"
+              src="/public/images/wildcat-logo-placeholder.png"
               alt="WildCAT Logo"
               className="w-24 h-24 md:w-32 md:h-32 object-contain"
               onError={(e) => {
