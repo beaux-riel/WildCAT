@@ -416,14 +416,14 @@ const CSVColumnReorderer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-wildcat-cream via-white to-wildcat-green p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-xl p-8">
-          <h1 className="text-3xl font-bold text-wildcat-brown mb-8 flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-wildcat-cream via-white to-wildcat-green p-3 md:p-6">
+      <div className="max-w-7xl mx-auto w-full">
+        <div className="bg-white rounded-xl shadow-xl p-4 md:p-8">
+          <h1 className="text-3xl font-bold text-wildcat-brown mb-8 flex flex-col md:flex-row items-center md:gap-3 gap-4">
             <img
               src="/images/wildcat-logo-placeholder.png"
               alt="WildCAT Logo"
-              className="w-32 h-32 object-contain"
+              className="w-24 h-24 md:w-32 md:h-32 object-contain"
               onError={(e) => {
                 // Fallback to FileText icon if logo not found
                 e.target.style.display = 'none';
@@ -431,10 +431,12 @@ const CSVColumnReorderer = () => {
               }}
             />
             <FileText className="text-wildcat-orange hidden" />
-            <span className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange bg-clip-text text-transparent">
-              WildCAT
-            </span>
-            <span className="text-gray-600 text-2xl">Column Arrangement Tool</span>
+            <div className="flex flex-col items-center md:items-start">
+              <span className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange bg-clip-text text-transparent">
+                WildCAT
+              </span>
+              <span className="text-gray-600 text-xl md:text-2xl">Column Arrangement Tool</span>
+            </div>
           </h1>
           
           {/* File Upload */}
@@ -473,21 +475,21 @@ const CSVColumnReorderer = () => {
           {/* Column Reordering Section */}
           {columns.length > 0 && (
             <div className="mb-8">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
                 <h2 className="text-xl font-semibold text-gray-700">
                   Drag columns to reorder
                 </h2>
                 <div className="flex gap-2">
                   <button
                     onClick={addBlankColumn}
-                    className="px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors flex items-center gap-2"
+                    className="flex-1 md:flex-none px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors flex items-center justify-center gap-2"
                   >
                     <Plus size={18} />
                     Add Column
                   </button>
                   <button
                     onClick={resetOrder}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="flex-1 md:flex-none px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     Reset
                   </button>
@@ -575,7 +577,7 @@ const CSVColumnReorderer = () => {
                 <Star className="text-wildcat-orange" size={20} />
                 Save Current Arrangement
               </h3>
-              <div className="flex gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
                 <input
                   type="text"
                   placeholder="Enter arrangement name..."
@@ -585,7 +587,7 @@ const CSVColumnReorderer = () => {
                 />
                 <button
                   onClick={saveArrangement}
-                  className="px-6 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-brown transition-colors flex items-center gap-2 font-medium"
+                  className="w-full md:w-auto px-6 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-brown transition-colors flex items-center justify-center gap-2 font-medium"
                 >
                   <Save size={18} />
                   Save
@@ -597,14 +599,14 @@ const CSVColumnReorderer = () => {
           {/* Saved Arrangements */}
           {savedArrangements.length > 0 && (
             <div className="mb-8">
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-3">
                 <h3 className="text-lg font-semibold text-gray-700">
                   Saved Arrangements
                 </h3>
                 {/* Import/Export Toolbar */}
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-col md:flex-row gap-2 md:items-center w-full md:w-auto">
                   {/* Import Button */}
-                  <label className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium cursor-pointer">
+                  <label className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
                     <FileUp size={16} />
                     Import
                     <input
@@ -621,7 +623,7 @@ const CSVColumnReorderer = () => {
                       setSelectedArrangements(new Set());
                       setTimeout(() => exportArrangements(), 0);
                     }}
-                    className="px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-green/90 transition-colors flex items-center gap-2 text-sm font-medium"
+                    className="px-4 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-green/90 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
                     title="Export all arrangements"
                   >
                     <FileDown size={16} />
@@ -629,13 +631,13 @@ const CSVColumnReorderer = () => {
                   </button>
 
                   {/* Divider */}
-                  <div className="h-8 w-px bg-gray-300"></div>
+                  <div className="hidden md:block h-8 w-px bg-gray-300"></div>
 
                   {/* Select & Export or Show Selection Count */}
                   {selectedArrangements.size === 0 ? (
                     <button
                       onClick={selectAllArrangements}
-                      className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center gap-2 text-sm font-medium"
+                      className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
                       title="Select arrangements to export"
                     >
                       <CheckSquare size={16} />
@@ -651,7 +653,7 @@ const CSVColumnReorderer = () => {
                       </button>
                       <button
                         onClick={exportArrangements}
-                        className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center gap-2 text-sm font-medium"
+                        className="px-4 py-2 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-orange/90 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
                       >
                         <FileDown size={16} />
                         Export Selected
@@ -664,13 +666,13 @@ const CSVColumnReorderer = () => {
                 {savedArrangements.map(arrangement => (
                   <div
                     key={arrangement.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    className={`flex flex-col md:flex-row md:items-center md:justify-between p-3 rounded-lg border transition-colors ${
                       selectedArrangements.has(arrangement.id)
                         ? 'bg-purple-100 border-purple-400'
                         : 'bg-wildcat-cream/30 border-wildcat-green/50 hover:border-wildcat-orange'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-3 md:mb-0">
                       <input
                         type="checkbox"
                         checked={selectedArrangements.has(arrangement.id)}
@@ -682,10 +684,10 @@ const CSVColumnReorderer = () => {
                         {arrangement.name}
                       </span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full md:w-auto">
                       <button
                         onClick={() => setPreviewArrangement(arrangement)}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-1"
+                        className="flex-1 md:flex-none px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center gap-1"
                         title="Preview arrangement"
                       >
                         <Eye size={14} />
@@ -693,7 +695,7 @@ const CSVColumnReorderer = () => {
                       </button>
                       <button
                         onClick={() => loadArrangement(arrangement)}
-                        className="px-3 py-1 bg-wildcat-green text-white rounded hover:bg-wildcat-dark-green transition-colors text-sm font-medium"
+                        className="flex-1 md:flex-none px-3 py-1 bg-wildcat-green text-white rounded hover:bg-wildcat-dark-green transition-colors text-sm font-medium"
                       >
                         Load
                       </button>
@@ -751,10 +753,10 @@ const CSVColumnReorderer = () => {
 
           {/* Export Button */}
           {columns.length > 0 && (
-            <div className="flex justify-end">
+            <div className="flex justify-center md:justify-end">
               <button
                 onClick={exportCSV}
-                className="px-6 py-3 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-brown transition-colors flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
+                className="w-full md:w-auto px-6 py-3 bg-wildcat-orange text-white rounded-lg hover:bg-wildcat-brown transition-colors flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg"
               >
                 <Download size={20} />
                 Export Reordered CSV
@@ -765,23 +767,23 @@ const CSVColumnReorderer = () => {
 
         {/* Preview Modal */}
         {previewArrangement && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] md:max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                      <Eye size={24} />
-                      Preview: {previewArrangement.name}
+              <div className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange p-4 md:p-6 text-white">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg md:text-2xl font-bold flex items-center gap-2">
+                      <Eye size={20} className="md:w-6 md:h-6 flex-shrink-0" />
+                      <span className="truncate">Preview: {previewArrangement.name}</span>
                     </h2>
-                    <p className="text-sm text-wildcat-cream mt-1">
+                    <p className="text-xs md:text-sm text-wildcat-cream mt-1">
                       Review the arrangement before applying it
                     </p>
                   </div>
                   <button
                     onClick={() => setPreviewArrangement(null)}
-                    className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                    className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors flex-shrink-0"
                     title="Close preview"
                   >
                     <span className="text-2xl">×</span>
@@ -790,8 +792,8 @@ const CSVColumnReorderer = () => {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {/* Original Column Order */}
                   <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-300">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -889,10 +891,10 @@ const CSVColumnReorderer = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+              <div className="bg-gray-50 px-4 md:px-6 py-4 flex flex-col md:flex-row justify-end gap-3 border-t">
                 <button
                   onClick={() => setPreviewArrangement(null)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  className="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                 >
                   Close
                 </button>
@@ -901,7 +903,7 @@ const CSVColumnReorderer = () => {
                     loadArrangement(previewArrangement);
                     setPreviewArrangement(null);
                   }}
-                  className="px-6 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors font-medium flex items-center gap-2"
+                  className="w-full md:w-auto px-6 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <Download size={18} />
                   Apply Arrangement
