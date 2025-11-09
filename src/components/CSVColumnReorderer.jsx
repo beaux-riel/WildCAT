@@ -10,6 +10,7 @@ const CSVColumnReorderer = () => {
   const [fileName, setFileName] = useState('');
   const [selectedArrangements, setSelectedArrangements] = useState(new Set());
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [previewArrangement, setPreviewArrangement] = useState(null);
 
   // Load saved arrangements from localStorage on mount
   useEffect(() => {
@@ -683,6 +684,14 @@ const CSVColumnReorderer = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setPreviewArrangement(arrangement)}
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-1"
+                        title="Preview arrangement"
+                      >
+                        <Eye size={14} />
+                        Preview
+                      </button>
+                      <button
                         onClick={() => loadArrangement(arrangement)}
                         className="px-3 py-1 bg-wildcat-green text-white rounded hover:bg-wildcat-dark-green transition-colors text-sm font-medium"
                       >
@@ -753,6 +762,154 @@ const CSVColumnReorderer = () => {
             </div>
           )}
         </div>
+
+        {/* Preview Modal */}
+        {previewArrangement && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-wildcat-brown to-wildcat-orange p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                      <Eye size={24} />
+                      Preview: {previewArrangement.name}
+                    </h2>
+                    <p className="text-sm text-wildcat-cream mt-1">
+                      Review the arrangement before applying it
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setPreviewArrangement(null)}
+                    className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                    title="Close preview"
+                  >
+                    <span className="text-2xl">×</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Original Column Order */}
+                  <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-300">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <FileText size={20} className="text-gray-600" />
+                      Original Column Order
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Columns as they appear in the CSV file
+                    </p>
+                    <div className="space-y-2">
+                      {previewArrangement.columnOrder
+                        .filter(col => !col.isCustom)
+                        .sort((a, b) => a.originalIndex - b.originalIndex)
+                        .map((col, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg"
+                          >
+                            <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-1 rounded min-w-[2rem] text-center">
+                              {col.originalIndex + 1}
+                            </span>
+                            <span className="font-medium text-gray-700 flex-1">
+                              {col.name}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Reordered Arrangement */}
+                  <div className="bg-wildcat-cream/30 rounded-lg p-4 border-2 border-wildcat-green">
+                    <h3 className="text-lg font-semibold text-wildcat-brown mb-3 flex items-center gap-2">
+                      <Star size={20} className="text-wildcat-orange" />
+                      Saved Arrangement
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Columns in the saved order
+                    </p>
+                    <div className="space-y-2">
+                      {previewArrangement.columnOrder.map((col, index) => (
+                        <div
+                          key={index}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                            col.excluded
+                              ? 'bg-red-50 border-red-300 opacity-60'
+                              : col.isCustom
+                              ? 'bg-wildcat-green/20 border-wildcat-green'
+                              : 'bg-white border-wildcat-green/50'
+                          }`}
+                        >
+                          <span className="text-xs font-mono text-gray-600 bg-white/70 px-2 py-1 rounded min-w-[2rem] text-center">
+                            {index + 1}
+                          </span>
+                          <span className={`font-medium flex-1 ${
+                            col.excluded ? 'text-red-600 line-through' : 'text-gray-700'
+                          }`}>
+                            {col.name}
+                          </span>
+                          <div className="flex gap-1">
+                            {col.isCustom && (
+                              <span className="text-xs bg-wildcat-green text-white px-2 py-1 rounded font-medium">
+                                Custom
+                              </span>
+                            )}
+                            {col.excluded && (
+                              <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">
+                                Excluded
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2 text-sm">Legend:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-wildcat-green/20 border border-wildcat-green rounded"></div>
+                      <span className="text-gray-700">Custom Column (empty values)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-red-50 border border-red-300 rounded"></div>
+                      <span className="text-gray-700">Excluded from export</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-white border border-wildcat-green/50 rounded"></div>
+                      <span className="text-gray-700">Standard column</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+                <button
+                  onClick={() => setPreviewArrangement(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    loadArrangement(previewArrangement);
+                    setPreviewArrangement(null);
+                  }}
+                  className="px-6 py-2 bg-wildcat-green text-white rounded-lg hover:bg-wildcat-dark-green transition-colors font-medium flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Apply Arrangement
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
