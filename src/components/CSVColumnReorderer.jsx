@@ -21,20 +21,62 @@ const CSVColumnReorderer = () => {
     }
   }, []);
 
-  // Parse CSV file
+  // Parse CSV file with proper quote-aware row splitting
   const parseFile = (file) => {
     if (!file) return;
 
     setFileName(file.name);
     const reader = new FileReader();
-    
+
     reader.onload = (event) => {
-      const text = event.target.result;
-      const rows = text.split('\n').filter(row => row.trim());
-      
+      let text = event.target.result;
+
+      // Remove BOM if present
+      if (text.charCodeAt(0) === 0xFEFF) {
+        text = text.slice(1);
+      }
+
+      // Parse CSV rows in a quote-aware manner
+      const rows = [];
+      let currentRow = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          // Check for escaped quote ("")
+          if (inQuotes && nextChar === '"') {
+            currentRow += '""';
+            i++; // Skip next quote
+          } else {
+            inQuotes = !inQuotes;
+            currentRow += char;
+          }
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          // End of row (only if not inside quotes)
+          if (currentRow.trim()) {
+            rows.push(currentRow);
+          }
+          currentRow = '';
+          // Skip \r\n combination
+          if (char === '\r' && nextChar === '\n') {
+            i++;
+          }
+        } else {
+          currentRow += char;
+        }
+      }
+
+      // Add last row if exists
+      if (currentRow.trim()) {
+        rows.push(currentRow);
+      }
+
       if (rows.length > 0) {
-        // Parse headers
-        const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        // Parse headers with quote-aware cell splitting
+        const headers = parseCSVRow(rows[0]);
         const newColumns = headers.map((header, index) => ({
           id: index,
           name: header,
@@ -45,26 +87,7 @@ const CSVColumnReorderer = () => {
         setColumns(newColumns);
 
         // Parse data rows
-        const dataRows = rows.slice(1).map(row => {
-          const values = [];
-          let current = '';
-          let inQuotes = false;
-
-          for (let i = 0; i < row.length; i++) {
-            const char = row[i];
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              values.push(current.trim());
-              current = '';
-            } else {
-              current += char;
-            }
-          }
-          values.push(current.trim());
-
-          return values;
-        });
+        const dataRows = rows.slice(1).map(row => parseCSVRow(row));
 
         setCsvData(dataRows);
 
@@ -73,8 +96,41 @@ const CSVColumnReorderer = () => {
         setRecommendedArrangements(matches);
       }
     };
-    
+
     reader.readAsText(file);
+  };
+
+  // Helper function to parse a single CSV row into cells
+  const parseCSVRow = (row) => {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      const nextChar = row[i + 1];
+
+      if (char === '"') {
+        // Handle escaped quotes ("")
+        if (inQuotes && nextChar === '"') {
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of cell
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    // Add last cell
+    values.push(current.trim());
+
+    return values;
   };
 
   const handleFileUpload = (e) => {
