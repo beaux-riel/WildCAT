@@ -190,4 +190,5 @@ The desktop app can be distributed as:
 
 - [Electron Quick Start](./docs/ELECTRON_QUICK_START.md) - Get started quickly
 - [Electron Setup Guide](./docs/ELECTRON_SETUP.md) - Complete documentation
+- [Versioning Strategy](./docs/VERSIONING.md) - Release versioning and GitHub Actions
 - [Electron Official Docs](https://www.electronjs.org/) - Electron documentation

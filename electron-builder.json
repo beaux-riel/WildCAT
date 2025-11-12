@@ -29,7 +29,8 @@
     "icon": "public/icon.png",
     "darkModeSupport": true,
     "hardenedRuntime": false,
-    "gatekeeperAssess": false
+    "gatekeeperAssess": false,
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "win": {
     "target": [
@@ -70,9 +71,11 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "WildCAT"
+    "shortcutName": "WildCAT",
+    "artifactName": "${productName}-${version}-${arch}-setup.${ext}"
   },
   "dmg": {
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "contents": [
       {
         "x": 130,

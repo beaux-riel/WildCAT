@@ -24,6 +24,7 @@ jobs:
       release_id: ${{ steps.create_release.outputs.id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
+      version_number: ${{ steps.get_version.outputs.version_number }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,15 +39,31 @@ jobs:
       - name: Get version
         id: get_version
         run: |
+          # Determine version based on trigger
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+            # If triggered by a tag, use the tag name
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            VERSION_NUMBER=${TAG_NAME#v}  # Remove 'v' prefix for package.json
+            VERSION=$TAG_NAME
           elif [[ "${{ github.event.inputs.version }}" != "" ]]; then
+            # If manually triggered with version input
             VERSION=${{ github.event.inputs.version }}
+            VERSION_NUMBER=${VERSION#v}
           else
-            VERSION="v$(node -p "require('./package.json').version")-$(git rev-parse --short HEAD)"
+            # Auto-increment patch version and append commit hash
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            PATCH=$((VERSION_PARTS[2] + 1))
+            NEW_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH"
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            VERSION="v${NEW_VERSION}"
+            VERSION_NUMBER="${NEW_VERSION}"
           fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "version_number=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+          echo "Release Version: $VERSION"
+          echo "Package Version: $VERSION_NUMBER"
 
       - name: Create Release
         id: create_release
@@ -78,6 +95,7 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -98,6 +116,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update package.json version
+        run: |
+          # Update version in package.json
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.version = '${{ needs.create-release.outputs.version_number }}';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Updated package.json to version ${{ needs.create-release.outputs.version_number }}"
+
       - name: Build Vite app
         run: npm run build
 
@@ -108,16 +137,11 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: List release files
-        run: ls -lh release/
-
-      - name: Find DMG files
-        id: find_dmg
         run: |
-          echo "Looking for DMG files..."
+          echo "=== Release directory contents ==="
+          ls -lhR release/
+          echo "=== DMG files ==="
           find release -name "*.dmg" -type f
-          DMG_FILES=$(find release -name "*.dmg" -type f | tr '\n' ' ')
-          echo "dmg_files=$DMG_FILES" >> $GITHUB_OUTPUT
-          echo "Found DMG files: $DMG_FILES"
 
       - name: Upload Release Assets (macOS)
         uses: softprops/action-gh-release@v1
@@ -125,7 +149,10 @@ jobs:
           tag_name: ${{ needs.create-release.outputs.version }}
           files: |
             release/*.dmg
+            release/*.zip
             release/**/*.dmg
+            release/**/*.zip
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -146,6 +173,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update package.json version
+        shell: powershell
+        run: |
+          $version = "${{ needs.create-release.outputs.version_number }}"
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = $version
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json
+          Write-Host "Updated package.json to version $version"
+
       - name: Build Vite app
         run: npm run build
 
@@ -156,15 +192,12 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: List release files
-        run: Get-ChildItem -Path release -Recurse
-        shell: powershell
-
-      - name: Find EXE files
-        id: find_exe
         shell: powershell
         run: |
-          Write-Host "Looking for EXE files..."
-          Get-ChildItem -Path release -Filter *.exe -Recurse | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "=== Release directory contents ==="
+          Get-ChildItem -Path release -Recurse | Format-Table -AutoSize
+          Write-Host "=== EXE files ==="
+          Get-ChildItem -Path release -Filter *.exe -Recurse | Select-Object FullName
 
       - name: Upload Release Assets (Windows)
         uses: softprops/action-gh-release@v1
@@ -172,6 +205,9 @@ jobs:
           tag_name: ${{ needs.create-release.outputs.version }}
           files: |
             release/*.exe
+            release/*.zip
             release/**/*.exe
+            release/**/*.zip
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
