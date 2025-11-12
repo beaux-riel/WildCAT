@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Save, Download, Trash2, GripVertical, FileText, Star, FileDown, FileUp, Eye, EyeOff, Plus, CheckSquare, Lightbulb, X } from 'lucide-react';
+import wildcatLogo from '/public/images/wildcat-logo.png';
 
 const CSVColumnReorderer = () => {
   const [csvData, setCsvData] = useState([]);
@@ -518,9 +519,9 @@ const CSVColumnReorderer = () => {
         <div className="bg-white rounded-xl shadow-xl p-4 md:p-8">
           <h1 className="text-3xl font-bold text-wildcat-brown mb-8 flex flex-col md:flex-row items-center md:gap-3 gap-4">
             <img
-              src="/public/images/wildcat-logo-placeholder.png"
+              src={wildcatLogo}
               alt="WildCAT Logo"
-              className="w-24 h-24 md:w-32 md:h-32 object-contain"
+              className="w-24 h-24 md:w-32 md:h-32 object-contain rounded-lg"
               onError={(e) => {
                 // Fallback to FileText icon if logo not found
                 e.target.style.display = 'none';
