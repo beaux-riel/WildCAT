@@ -704,7 +704,7 @@ const CSVColumnReorderer = () => {
                         type="text"
                         value={column.name}
                         onChange={(e) => renameColumn(index, e.target.value)}
-                        className="font-medium text-gray-700 bg-transparent border-none outline-none focus:ring-1 focus:ring-wildcat-green rounded px-1"
+                        className="font-medium text-gray-900 bg-white border-none outline-none focus:ring-1 focus:ring-wildcat-green rounded px-1"
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
@@ -768,7 +768,7 @@ const CSVColumnReorderer = () => {
                   placeholder="Enter arrangement name..."
                   value={arrangementName}
                   onChange={(e) => setArrangementName(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-wildcat-green rounded-lg focus:outline-none focus:ring-2 focus:ring-wildcat-orange"
+                  className="flex-1 px-4 py-2 bg-white text-gray-900 border border-wildcat-green rounded-lg focus:outline-none focus:ring-2 focus:ring-wildcat-orange placeholder:text-gray-500"
                 />
                 <button
                   onClick={saveArrangement}
